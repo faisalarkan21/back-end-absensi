@@ -1,9 +1,12 @@
 const express = require('express');
 const bodyParser = require('body-parser');
 const cors = require("cors");
-
+var Nexmo = require('nexmo');
 const indexController = require('./routes/index');
 // const users = require('./routes/users');
+
+
+
 
 const app = express();
 
@@ -22,7 +25,10 @@ app.use(bodyParser.urlencoded({
 app.get('/', (req, res) => {
     res.redirect('/api');
 });
-  
+
+
+
+
 app.use('/api', indexController);
 // app.use('/api/users', userController);
 

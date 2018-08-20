@@ -5,7 +5,7 @@ const router = express.Router();
 var connection = mysql.createConnection({
   host: 'localhost',
   user: 'root',
-  password: '',
+  password: 'arkan14811',
   database: 'absensi_gundar'
 });
 
@@ -38,11 +38,14 @@ router.get('/main-users', async (req, res) => {
 });
 
 router.get('/jadwal-mhs', async (req, res) => {
-  connection.query('SELECT * from jadwal_kelas', function (error, results, fields) {
+  console.log(req.query)
+  connection.query('SELECT * from jadwal_kelas where kelas = ?',req.query.kelas, function (error, results, fields) {
     if (error) throw error;
     // connected!
     console.log(results);
-    res.json({data:results});
+    res.json({
+      data: results
+    });
   });
 });
 
@@ -51,7 +54,9 @@ router.get('/jadwal-dosen', async (req, res) => {
     if (error) throw error;
     // connected!
     console.log(results);
-    res.json({data:results});
+    res.json({
+      data: results
+    });
   });
 });
 
@@ -59,12 +64,34 @@ router.post('/save-location-mhs', async (req, res) => {
 
   console.log(req.body)
 
-  const { id_jadwal_kelas, longitude, latitude, id } = req.body;
+  const {
+    id_jadwal_kelas,
+    longitude,
+    latitude,
+    npm,
+    token,
+    address,
+  } = req.body;
 
-  connection.query('update mahasiswa SET id_jadwal_kelas = ?, longitude = ?, latitude = ? where id = ?', [ id_jadwal_kelas, longitude, latitude, id], function (error, results, fields) {
-    if (error) throw error;
-    console.log(results.insertId);
-  });
+
+  connection.query('select * from mahasiswa where npm = ?', npm,function (rows){
+
+    console.log(rows)
+    connection.query('insert into log_absensi SET ?', [{npm, latitude, longitude,id_jadwal_kelas, token, address }], function (error, results, fields) {
+      if (error) throw error;
+      console.log(results.insertId);
+  
+      res.json({
+        status: 200,
+        message: 'location successfully saved'
+      });
+  
+    });
+  
+
+
+  })
+
 
 
 
@@ -95,20 +122,23 @@ router.post('/login', async (req, res) => {
 
     } else {
 
-    
 
-      if ((req.body.email === data[0].email) && (req.body.password === data[0].password)) {
+
+      if ((req.body.email.toLowerCase() === data[0].email) && (req.body.password === data[0].password)) {
 
         console.log({
           status: 'Login berhasil.'
         });
 
-        res.json({
+        console.log(data)
+
+        res.json({ 
           id: data[0].id,
           nama: data[0].nama,
           email: data[0].email,
           npm: data[0].npm,
           password: data[0].password,
+          kelas: data[0].kelas,
           alamat: data[0].alamat,
           token: data[0].token,
           status: 'Login Berhasil',
@@ -164,7 +194,7 @@ router.post('/main-login', async (req, res) => {
 
     } else {
 
-    
+
 
       if ((req.body.email === data[0].email) && (req.body.password === data[0].password)) {
 
