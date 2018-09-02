@@ -2,6 +2,7 @@ const express = require('express');
 const bodyParser = require('body-parser');
 const cors = require("cors");
 var Nexmo = require('nexmo');
+const json2xls = require('json2xls');
 const indexController = require('./routes/index');
 // const users = require('./routes/users');
 
@@ -28,7 +29,7 @@ app.get('/', (req, res) => {
 
 
 
-
+app.use(json2xls.middleware);
 app.use('/api', indexController);
 // app.use('/api/users', userController);
 

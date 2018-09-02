@@ -1,7 +1,7 @@
 const express = require('express');
 var mysql = require('mysql');
 var _ = require('lodash');
-
+var moment = require('moment');
 const router = express.Router();
 var connection = mysql.createConnection({
   host: 'localhost',
@@ -10,6 +10,21 @@ var connection = mysql.createConnection({
   database: 'absensi_gundar'
 });
 
+
+Date.createFromMysql = function(mysql_string)
+{ 
+   var t, result = null;
+
+   if( typeof mysql_string === 'string' )
+   {
+      t = mysql_string.split(/[- :]/);
+
+      //when t[3], t[4] and t[5] are missing they defaults to zero
+      result = new Date(t[0], t[1] - 1, t[2], t[3] || 0, t[4] || 0, t[5] || 0);          
+   }
+
+   return result;   
+}
 
 router.get('/', async (req, res) => {
   res.json({
@@ -149,9 +164,88 @@ router.get('/get-all-log-mhs', async (req, res) => {
     });
 
   }
-
-
 });
+
+
+router.get('/get-all-log-mhs-xls', async (req, res) => {
+
+  console.log(req.query)
+
+     /**
+     * minta kesini buat ngambil query 
+     */
+    
+
+     /**
+      * Query SQL lau buat ngambil kedatabase tar di regenerate jdi XLS
+      */
+    //  `
+    //  SELECT log_absensi_mhs.id as log_id, log_absensi_mhs.npm, mahasiswa.nama as nama_mahasiswa, 
+    //  mahasiswa.email as email_mahasiswa, dosen.nama as nama_dosen, dosen.nip, dosen.email, 
+    //  jadwal_kelas.hari, jadwal_kelas.matkul, jadwal_kelas.waktu, jadwal_kelas.ruang, 
+    //  log_absensi_mhs.address as lokasi_absen, log_absensi_mhs.date_on_sign as waktu_save_lokasi  
+
+     
+    //  from log_absensi_mhs inner join jadwal_kelas on log_absensi_mhs.id_jadwal_kelas = jadwal_kelas.id 
+    //  inner join mahasiswa on log_absensi_mhs.npm = mahasiswa.npm 
+    //  inner join dosen on jadwal_kelas.dosen = dosen.id
+     
+    //  `
+
+
+    return connection.query('SELECT log_absensi_mhs.id as log_id, log_absensi_mhs.npm, mahasiswa.nama as nama_mahasiswa, mahasiswa.email as email_mahasiswa, dosen.nama as nama_dosen, dosen.nip, dosen.email, jadwal_kelas.hari, jadwal_kelas.matkul, jadwal_kelas.waktu, jadwal_kelas.ruang, log_absensi_mhs.address as lokasi_absen, log_absensi_mhs.date_on_sign as waktu_save_lokasi  from log_absensi_mhs inner join jadwal_kelas on log_absensi_mhs.id_jadwal_kelas = jadwal_kelas.id inner join mahasiswa on log_absensi_mhs.npm = mahasiswa.npm inner join dosen on jadwal_kelas.dosen = dosen.id', function (error, results, fields) {
+      if (error) throw error;
+      // connected!  
+      console.log(results);
+
+      results.forEach(function(part, index, theArray) {
+        const convertedDate = moment(results[index].waktu_save_lokasi).format('YYYY-MM-DD, h:mm:ss a')
+        console.log(results[index].waktu_save_lokasi)
+        theArray[index].waktu_save_lokasi = convertedDate;
+      });
+
+      console.log(results);
+
+
+      res.json({
+        data: results
+      });
+    });
+
+  
+});
+
+
+router.get('/get-all-log-dosen-xls', async (req, res) => {
+
+  console.log(req.query)
+
+
+    return connection.query('SELECT log_absensi_dosen.id as log_id, log_absensi_dosen.nip, dosen.nama as nama_dosen, dosen.nip, dosen.email, jadwal_kelas.hari, jadwal_kelas.matkul, jadwal_kelas.waktu, jadwal_kelas.ruang, log_absensi_dosen.address as lokasi_absen, log_absensi_dosen.date_on_sign as waktu_save_lokasi  from log_absensi_dosen inner join jadwal_kelas on log_absensi_dosen.id_jadwal_kelas = jadwal_kelas.id inner join dosen on jadwal_kelas.dosen = dosen.id', function (error, results, fields) {
+      if (error) throw error;
+      // connected!  
+
+
+      results.forEach(function(part, index, theArray) {
+        const convertedDate = moment(results[index].waktu_save_lokasi).format('YYYY-MM-DD, h:mm:ss a')
+        console.log(results[index].waktu_save_lokasi)
+        theArray[index].waktu_save_lokasi = convertedDate;
+      });
+
+
+      // console.log(results);
+
+      res.json({
+        data: results
+      });
+    });
+
+  
+});
+
+
+
+
 
 // get all dosen
 router.get('/get-all-dosen', async (req, res) => {
