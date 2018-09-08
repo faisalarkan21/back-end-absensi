@@ -230,6 +230,16 @@ router.get('/get-all-log-mhs', async (req, res) => {
         data: results
       });
     });
+  }else if(req.query.npm){
+    return connection.query('SELECT * from log_absensi_mhs inner join jadwal_kelas on log_absensi_mhs.id_jadwal_kelas = jadwal_kelas.id inner join mahasiswa on log_absensi_mhs.npm = mahasiswa.npm where mahasiswa.npm =  ? ', req.query.npm, function (error, results, fields) {
+      if (error) throw error;
+      // connected!
+      // console.log(results);
+      res.json({
+        data: results
+      });
+    });
+
   } else {
     return connection.query('SELECT * from log_absensi_mhs inner join jadwal_kelas on log_absensi_mhs.id_jadwal_kelas = jadwal_kelas.id inner join mahasiswa on log_absensi_mhs.npm = mahasiswa.npm', function (error, results, fields) {
       if (error) throw error;
@@ -346,6 +356,17 @@ router.post('/update-mhs', async (req, res) => {
     res.sendStatus(200)
   });
 });
+
+router.post('/update-mhs-log-validation', async (req, res) => {
+  console.log(req.body)
+  connection.query('update log_absensi_mhs SET isValid =  ? where npm = ? ', [req.body, req.body.npm], function (error, results, fields) {
+    if (error) throw error;
+    // connected!
+    // console.log(results);  
+    res.sendStatus(200)
+  });
+});
+
 
 router.post('/update-dsn', async (req, res) => {
   console.log(req.body)
