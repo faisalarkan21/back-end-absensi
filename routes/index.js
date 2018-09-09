@@ -163,7 +163,7 @@ router.get('/get-all-mhs', async (req, res) => {
     connection.query('SELECT mahasiswa.id as id_mahasiswa, mahasiswa.* from  mahasiswa inner join kelas on mahasiswa.kelas = kelas.id where mahasiswa.kelas = ?', req.query.id_kelas, function (error, resultsAllMhs, fields) {
       if (error) throw error;
       // console.log(resultsAllMhs)
-      return connection.query('SELECT * from log_absensi_mhs inner join jadwal_kelas on log_absensi_mhs.id_jadwal_kelas = jadwal_kelas.id inner join mahasiswa on log_absensi_mhs.npm = mahasiswa.npm where log_absensi_mhs.id_jadwal_kelas = ?', req.query.id_jadwal, function (error, resultsLogMhs, fields) {
+      return connection.query('SELECT log_absensi_mhs.id as id_log_mahasiswa, log_absensi_mhs.*, mahasiswa.* from log_absensi_mhs inner join jadwal_kelas on log_absensi_mhs.id_jadwal_kelas = jadwal_kelas.id inner join mahasiswa on log_absensi_mhs.npm = mahasiswa.npm where log_absensi_mhs.id_jadwal_kelas = ?', req.query.id_jadwal, function (error, resultsLogMhs, fields) {
         // connected!
         // console.log(resultsLogMhs);
 
@@ -184,11 +184,40 @@ router.get('/get-all-mhs', async (req, res) => {
           }
         }
 
-        for (let w = 0; w < resultsLogMhs.length; w++) {
-          _.remove(resultsAllMhs, obj => obj.id_mahasiswa === resultsLogMhs[w].id);
+        for (let z = 0; z < resultsAllMhs.length; z++) {
+
+          for (let x = 0; x < resultsLogMhs.length; x++) {
+            // console.log(resultsAllMhs[z].npm) 
+            if (resultsAllMhs[z].npm == resultsLogMhs[x].npm) {
+              // console.log('is True')
+
+              reWriteResult.push({
+                nama: resultsAllMhs[z].nama,
+                npm: resultsAllMhs[z].npm,
+                hasSendLocation: true,
+                index: z
+              })
+            }
+          }
         }
 
+
+        for (let w = 0; w < resultsLogMhs.length; w++) {
+          _.remove(resultsAllMhs, obj => obj.email === resultsLogMhs[w].email);
+        }
+
+        let setDefaultIsValid = {}
+        resultsAllMhs.isValid = setDefaultIsValid;
+
+
+        resultsAllMhs.map(val => {
+          Object.assign(val,{ isValid : null, date_on_sign: null, id_log_mahasiswa: null})
+        })
+     
+
         let unionTwice = _.union(resultsAllMhs, resultsLogMhs);
+
+        console.log(unionTwice)
         res.json({
           data: unionTwice
         })
@@ -359,7 +388,7 @@ router.post('/update-mhs', async (req, res) => {
 
 router.post('/update-mhs-log-validation', async (req, res) => {
   console.log(req.body)
-  connection.query('update log_absensi_mhs SET isValid =  ? where npm = ? ', [req.body, req.body.npm], function (error, results, fields) {
+  connection.query('update log_absensi_mhs SET isValid =  ? where id = ? ', [req.body.isValid, req.body.id_log_mhs], function (error, results, fields) {
     if (error) throw error;
     // connected!
     // console.log(results);  
@@ -424,16 +453,28 @@ router.post('/delete-dsn', async (req, res) => {
 // get all log dosen
 router.get('/get-all-log-dsn', async (req, res) => {
 
- console.log( req.query.nip)
+  console.log(req.query.nip)
 
-  connection.query('SELECT * from log_absensi_dosen inner join jadwal_kelas on log_absensi_dosen.id_jadwal_kelas = jadwal_kelas.id inner join dosen on log_absensi_dosen.nip = dosen.nip inner join kelas on jadwal_kelas.kelas = kelas.id', function (error, results, fields) {
-    if (error) throw error;
-    // connected!
-    // console.log(results);
-    res.json({
-      data: results
+  if (req.query.nip) {
+    connection.query('SELECT * from log_absensi_dosen inner join jadwal_kelas on log_absensi_dosen.id_jadwal_kelas = jadwal_kelas.id inner join dosen on log_absensi_dosen.nip = dosen.nip inner join kelas on jadwal_kelas.kelas = kelas.id where log_absensi_dosen.id_jadwal_kelas = ?', req.query.id_jadwal, function (error, results, fields) {
+      if (error) throw error;
+      // connected!
+      console.log(results);
+      res.json({
+        data: results
+      });
     });
-  });
+
+  } else {
+    connection.query('SELECT * from log_absensi_dosen inner join jadwal_kelas on log_absensi_dosen.id_jadwal_kelas = jadwal_kelas.id inner join dosen on log_absensi_dosen.nip = dosen.nip inner join kelas on jadwal_kelas.kelas = kelas.id', function (error, results, fields) {
+      if (error) throw error;
+      // connected!
+      // console.log(results);
+      res.json({
+        data: results
+      });
+    });
+  }
 });
 
 
