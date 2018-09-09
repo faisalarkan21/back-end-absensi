@@ -230,7 +230,7 @@ router.get('/get-all-log-mhs', async (req, res) => {
         data: results
       });
     });
-  }else if(req.query.npm){
+  } else if (req.query.npm) {
     return connection.query('SELECT * from log_absensi_mhs inner join jadwal_kelas on log_absensi_mhs.id_jadwal_kelas = jadwal_kelas.id inner join mahasiswa on log_absensi_mhs.npm = mahasiswa.npm where mahasiswa.npm =  ? ', req.query.npm, function (error, results, fields) {
       if (error) throw error;
       // connected!
@@ -423,10 +423,13 @@ router.post('/delete-dsn', async (req, res) => {
 
 // get all log dosen
 router.get('/get-all-log-dsn', async (req, res) => {
-  connection.query('SELECT * from log_absensi_dosen inner join jadwal_kelas on log_absensi_dosen.id_jadwal_kelas = jadwal_kelas.id inner join dosen on log_absensi_dosen.nip = dosen.nip', function (error, results, fields) {
+
+ console.log( req.query.nip)
+
+  connection.query('SELECT * from log_absensi_dosen inner join jadwal_kelas on log_absensi_dosen.id_jadwal_kelas = jadwal_kelas.id inner join dosen on log_absensi_dosen.nip = dosen.nip inner join kelas on jadwal_kelas.kelas = kelas.id', function (error, results, fields) {
     if (error) throw error;
     // connected!
-    console.log(results);
+    // console.log(results);
     res.json({
       data: results
     });
