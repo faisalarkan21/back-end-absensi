@@ -289,16 +289,22 @@ router.get('/get-all-log-mhs', async (req, res) => {
       if (error) throw error;
       // connected!
       // console.log(results);
+      
       res.json({
         data: results
       });
     });
 
   } else {
-    return connection.query('SELECT * from log_absensi_mhs inner join jadwal_kelas on log_absensi_mhs.id_jadwal_kelas = jadwal_kelas.id inner join mahasiswa on log_absensi_mhs.npm = mahasiswa.npm', function (error, results, fields) {
+    return connection.query('SELECT * from log_absensi_mhs inner join jadwal_kelas on log_absensi_mhs.id_jadwal_kelas = jadwal_kelas.id inner join mahasiswa on log_absensi_mhs.npm = mahasiswa.npm inner join kelas on jadwal_kelas.kelas = kelas.id', function (error, results, fields) {
       if (error) throw error;
       // connected!
-      // console.log(results);
+
+      results.map((v, i) => {
+        v.pertemuan = i + 1;
+        v.date_on_sign = moment(v.date_on_sign).lang('id').format('LLLL');
+      })
+      console.log(results);
       res.json({
         data: results
       });
