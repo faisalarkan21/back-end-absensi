@@ -4,6 +4,8 @@ var _ = require('lodash');
 var moment = require('moment');
 var SHA256 = require("crypto-js/sha256");
 var CryptoJS = require("crypto-js");
+const json2xls = require('json2xls');
+
 
 const router = express.Router();
 var connection = mysql.createConnection({
@@ -77,12 +79,48 @@ router.get('/main-users', async (req, res) => {
 
 router.get('/jadwal-mhs', async (req, res) => {
   console.log(req.query)
-  connection.query('SELECT * from jadwal_kelas where kelas = ?', req.query.kelas, function (error, results, fields) {
+
+  connection.query('SELECT kelas.kelas as nama_kelas, jadwal_kelas.id as id_jadwal, dosen.id as id_dosen, jadwal_kelas.*, dosen.* from jadwal_kelas INNER JOIN dosen ON jadwal_kelas.dosen = dosen.id inner join kelas on jadwal_kelas.kelas = kelas.id where kelas.id = ?', req.query.kelas, function (error, results, fields) {
     if (error) throw error;
-    // connected!
-    console.log(results);
-    res.json({
-      data: results
+
+    connection.query('SELECT log_absensi_dosen.*, kelas.* from kelas inner join jadwal_kelas on jadwal_kelas.kelas = kelas.id inner join log_absensi_dosen on jadwal_kelas.id = log_absensi_dosen.id_jadwal_kelas where kelas.id = ?', req.query.kelas, function (error, resultsLogDosen, fields) {
+     
+      connection.query('SELECT log_absensi_mhs.*, kelas.* from kelas inner join jadwal_kelas on jadwal_kelas.kelas = kelas.id inner join log_absensi_mhs on jadwal_kelas.id = log_absensi_mhs.id_jadwal_kelas where kelas.id = ? and log_absensi_mhs.npm = ?', [req.query.kelas, req.query.npm], function (error, resultsLogMhs, fields) {
+      
+     
+      if (error) throw error;
+      // connected!
+      results.map((v) => {
+        let z = 0;
+        resultsLogDosen.map((q) => {
+          if (v.id_jadwal === q.id_jadwal_kelas)
+            z += 1;
+          v.pertemuanDosen = z;
+        })
+      })
+
+      results.map((v) => {
+        let z = 0;
+        resultsLogMhs.map((q) => {
+          if (v.id_jadwal === q.id_jadwal_kelas)
+            z += 1;
+          v.pertemuanMhs= z;
+        })
+      })
+
+
+
+
+      console.log(results);
+
+
+
+      res.json({
+        data: results,
+        // resultsLogDosen
+        // resultsLogMhs
+      });
+    });
     });
   });
 });
@@ -164,12 +202,25 @@ router.get('/get-list-kelas', async (req, res) => {
 
 
 router.get('/jadwal-dosen', async (req, res) => {
-  connection.query('SELECT jadwal_kelas.id as id_jadwal, dosen.id as id_dosen, jadwal_kelas.*, dosen.* from jadwal_kelas INNER JOIN dosen ON jadwal_kelas.dosen = dosen.id where dosen = ?', req.query.id, function (error, results, fields) {
+  console.log(req.query)
+  connection.query('SELECT kelas.kelas as nama_kelas, jadwal_kelas.id as id_jadwal, dosen.id as id_dosen, jadwal_kelas.*, dosen.* from jadwal_kelas INNER JOIN dosen ON jadwal_kelas.dosen = dosen.id inner join kelas on jadwal_kelas.kelas = kelas.id where dosen = ?', req.query.id, function (error, results, fields) {
     if (error) throw error;
-    // connected!
-    console.log(results);
-    res.json({
-      data: results
+
+    connection.query('SELECT log_absensi_dosen.id as id_log, log_absensi_dosen.*, jadwal_kelas.*, dosen.nama as nama_dosen, kelas from log_absensi_dosen inner join jadwal_kelas on jadwal_kelas.id = log_absensi_dosen.id_jadwal_kelas inner join dosen on dosen.id = jadwal_kelas.dosen where log_absensi_dosen.nip order by log_absensi_dosen.date_on_sign ASC', req.query.nip, function (error, resultsLogDosen, fields) {
+      // connected!
+      console.log(resultsLogDosen.length);
+      results.map((v) => {
+        let z = 0;
+        resultsLogDosen.map((q) => {
+          if (v.id_jadwal === q.id_jadwal_kelas)
+            z += 1;
+          v.pertemuanDosen = z;
+        })
+      })
+      res.json({
+        data: results,
+        resultsLogDosen
+      });
     });
   });
 });
@@ -289,7 +340,7 @@ router.get('/get-all-log-mhs', async (req, res) => {
       if (error) throw error;
       // connected!
       // console.log(results);
-      
+
       res.json({
         data: results
       });
@@ -340,7 +391,7 @@ router.get('/get-all-log-mhs-xls', async (req, res) => {
   //  `
 
 
-  return connection.query('SELECT log_absensi_mhs.id as log_id, log_absensi_mhs.npm, mahasiswa.nama as nama_mahasiswa, mahasiswa.email as email_mahasiswa, dosen.nama as nama_dosen, dosen.nip, dosen.email, jadwal_kelas.hari, jadwal_kelas.matkul, jadwal_kelas.waktu, jadwal_kelas.ruang, log_absensi_mhs.address as lokasi_absen, log_absensi_mhs.date_on_sign as waktu_save_lokasi  from log_absensi_mhs inner join jadwal_kelas on log_absensi_mhs.id_jadwal_kelas = jadwal_kelas.id inner join mahasiswa on log_absensi_mhs.npm = mahasiswa.npm inner join dosen on jadwal_kelas.dosen = dosen.id', function (error, results, fields) {
+  return connection.query('SELECT log_absensi_mhs.id as log_id,  kelas.kelas,  log_absensi_mhs.npm, mahasiswa.nama as nama_mahasiswa, mahasiswa.email as email_mahasiswa, dosen.nama as nama_dosen, dosen.nip, dosen.email, jadwal_kelas.hari, jadwal_kelas.matkul, jadwal_kelas.waktu, jadwal_kelas.ruang, log_absensi_mhs.address as lokasi_absen, log_absensi_mhs.date_on_sign as waktu_save_lokasi  from log_absensi_mhs inner join jadwal_kelas on log_absensi_mhs.id_jadwal_kelas = jadwal_kelas.id inner join mahasiswa on log_absensi_mhs.npm = mahasiswa.npm inner join dosen on jadwal_kelas.dosen = dosen.id inner join kelas on kelas.id = jadwal_kelas.kelas', function (error, results, fields) {
     if (error) throw error;
     // connected!  
     console.log(results);
@@ -427,8 +478,8 @@ router.get('/get-all-jadwal-kelas', async (req, res) => {
     connection.query('SELECT jadwal_kelas.id as id_jadwal, jadwal_kelas.* from jadwal_kelas inner join kelas on kelas.id = jadwal_kelas.kelas where jadwal_kelas.kelas = ? ', resultsKelas[0].id, function (error, results, fields) {
       if (error) throw error;
       // connected!
-      console.log(resultsKelas[0])
-      connection.query('SELECT log_absensi_dosen.id as id_log, log_absensi_dosen.*, jadwal_kelas.*, dosen.nama as nama_dosen, kelas from log_absensi_dosen inner join jadwal_kelas on jadwal_kelas.id = log_absensi_dosen.id_jadwal_kelas inner join dosen on dosen.id = jadwal_kelas.dosen where log_absensi_dosen.id_jadwal_kelas', function (error, resultsLogKelas, fields) {
+
+      connection.query('SELECT log_absensi_dosen.id as id_log, log_absensi_dosen.*, jadwal_kelas.*, dosen.nama as nama_dosen, kelas from log_absensi_dosen inner join jadwal_kelas on jadwal_kelas.id = log_absensi_dosen.id_jadwal_kelas inner join dosen on dosen.id = jadwal_kelas.dosen where log_absensi_dosen.id_jadwal_kelas order by log_absensi_dosen.date_on_sign ASC', function (error, resultsLogKelas, fields) {
         if (error) throw error;
 
 
@@ -478,7 +529,7 @@ router.get('/get-all-jadwal-kelas', async (req, res) => {
           }
         })
 
-
+        console.log(resultsLogKelas)
         res.json({
           data: results,
           resultsLogKelas,
@@ -531,6 +582,16 @@ router.post('/delete-mhs', async (req, res) => {
   });
 });
 
+router.post('/delete-kelas', async (req, res) => {
+  console.log(req.body)
+  connection.query('delete from kelas where id = ? ', req.body.id, function (error, results, fields) {
+    if (error) throw error;
+    // connected!
+    // console.log(results);  
+    res.sendStatus(200)
+  });
+});
+
 
 
 
@@ -567,41 +628,275 @@ router.post('/delete-dsn', async (req, res) => {
 
 ///get-log
 router.get('/get-log', async (req, res) => {
-  console.log(req.query.id)
-  connection.query('SELECT * from log_absensi_dosen inner join jadwal_kelas on log_absensi_dosen.id_jadwal_kelas = jadwal_kelas.id inner join dosen on log_absensi_dosen.nip = dosen.nip inner join kelas on jadwal_kelas.kelas = kelas.id where log_absensi_dosen.id = ?', req.query.id, function (error, results, fields) {
-    if (error) throw error;
-    // connected!
-    console.log(results[0]);
-    const reFormatDate = moment(results[0].date_on_sign).lang('id').format('LLL');
-    // console.log(coba)
+  console.log(req.query)
 
-    const reWrite = {
-      id: results[0].id,
-      nip: results[0].nip,
-      token: null,
-      id_jadwal_kelas: results[0].id_jadwal_kelas,
-      longitude: results[0].longitude,
-      latitude: results[0].latitude,
-      address: results[0].address,
-      date_on_sign: reFormatDate,
-      isValid: null,
-      hari: results[0].hari,
-      matkul: results[0].matkul,
-      waktu: results[0].waktu,
-      ruang: results[0].ruang,
-      dosen: results[0].dosen,
-      kelas: results[0].kelas,
-      nama: results[0].nama,
-      email: results[0].email,
+  connection.query('SELECT jadwal_kelas.kelas, mahasiswa.id as id_mahasiswa, mahasiswa.*, kelas.kelas as kelas from  jadwal_kelas inner join kelas on jadwal_kelas.kelas = kelas.id inner join mahasiswa on kelas.id = mahasiswa.kelas where jadwal_kelas.id = ? ', req.query.idJadwal, function (error, resultsAllMhs, fields) {
+    connection.query('SELECT log_absensi_dosen.id as id_log_dsn, log_absensi_dosen.*, jadwal_kelas.*,  dosen.*, kelas.* from log_absensi_dosen inner join jadwal_kelas on log_absensi_dosen.id_jadwal_kelas = jadwal_kelas.id inner join dosen on log_absensi_dosen.nip = dosen.nip inner join kelas on jadwal_kelas.kelas = kelas.id where log_absensi_dosen.id = ?', req.query.id, function (error, resultsLogDosen, fields) {
+      if (error) throw error;
+      // connected!
+      resultsLogDosen.map((v) => {
+        v.date_on_sign = moment(v.date_on_sign).lang('id').format('LLL');
+      })
+      // console.log(resultsLogDosen)
+      // console.log(coba)
+      connection.query('SELECT log_absensi_mhs.id as id_log_mhs, log_absensi_mhs.*, jadwal_kelas.*, mahasiswa.*, kelas.* from log_absensi_mhs inner join jadwal_kelas on log_absensi_mhs.id_jadwal_kelas = jadwal_kelas.id inner join mahasiswa on log_absensi_mhs.npm = mahasiswa.npm inner join kelas on jadwal_kelas.kelas = kelas.id where log_absensi_mhs.id_jadwal_kelas = ? order by log_absensi_mhs.date_on_sign ASC', resultsLogDosen[0].id_jadwal_kelas, function (error, resultsLogMhs, fields) {
+        if (error) throw error;
 
-    }
 
-    res.json({
-      data: reWrite
+        resultsLogMhs.map((v) => {
+          v.date_on_sign = moment(v.date_on_sign).lang('id').format('LLL');
+        })
+
+        let reWriteLogPertMhs = [];
+        let findUniqueMhs = _.uniqBy(resultsLogMhs, 'npm');
+        let getAllMhsWithSequence = [];
+
+        findUniqueMhs.map((v, i) => {
+          getAllMhsWithSequence[i] = _.filter(resultsLogMhs, {
+            'npm': v.npm
+          });
+        })
+
+        let atPert = req.query.idPert;
+        getAllMhsWithSequence.map((v) => {
+          console.log((v[parseInt(atPert - 1)]))
+          if (v[parseInt(atPert)] != null) {
+            reWriteLogPertMhs.push(v[atPert - 1])
+          }
+        })
+
+
+        reWriteLogPertMhs.map((v) => {
+          _.remove(resultsAllMhs, {
+            npm: v.npm
+          })
+        })
+
+
+        resultsAllMhs.map((v) => {
+          v.isValid = null,
+            v.date_on_sign = null
+        })
+
+        // resultsAllMhs.push(reWriteLogPertMhs)
+
+        Array.prototype.push.apply(resultsAllMhs, reWriteLogPertMhs);
+
+        // console.log(resultsAllMhs[1])
+
+
+        res.json({
+          data: {
+            logDosen: resultsLogDosen[0],
+            logMhs: resultsAllMhs,
+            // getAllMhsWithSequence:getAllMhsWithSequence,
+            // reWriteLogPertMhs
+          }
+        });
+      });
     });
   });
 });
 
+router.get('/get-log-mobile', async (req, res) => {
+  console.log(req.query.id_jadwal_kelas)
+
+  // console.log(coba)
+
+  connection.query('SELECT jadwal_kelas.kelas, mahasiswa.id as id_mahasiswa, mahasiswa.* from  jadwal_kelas inner join kelas on jadwal_kelas.kelas = kelas.id inner join mahasiswa on kelas.id = mahasiswa.kelas where jadwal_kelas.id = ? ', req.query.id_jadwal, function (error, resultsAllMhs, fields) {
+    connection.query('SELECT log_absensi_mhs.id as id_log_mhs, log_absensi_mhs.*, jadwal_kelas.*, mahasiswa.*, kelas.* from log_absensi_mhs inner join jadwal_kelas on log_absensi_mhs.id_jadwal_kelas = jadwal_kelas.id inner join mahasiswa on log_absensi_mhs.npm = mahasiswa.npm inner join kelas on jadwal_kelas.kelas = kelas.id where log_absensi_mhs.id_jadwal_kelas = ? order by log_absensi_mhs.date_on_sign ASC', req.query.id_jadwal, function (error, resultsLogMhs, fields) {
+      if (error) throw error;
+
+
+      resultsLogMhs.map((v) => {
+        v.date_on_sign = moment(v.date_on_sign).lang('id').format('LLL');
+      })
+
+      let reWriteLogPertMhs = [];
+      let findUniqueMhs = _.uniqBy(resultsLogMhs, 'npm');
+      let getAllMhsWithSequence = [];
+
+      findUniqueMhs.map((v, i) => {
+        getAllMhsWithSequence[i] = _.filter(resultsLogMhs, {
+          'npm': v.npm
+        });
+      })
+
+      let atPert = req.query.idPert;
+      // console.log(parseInt( atPert))
+      getAllMhsWithSequence.map((v) => {
+
+        // console.log(v[parseInt(atPert)])
+        if (v[parseInt(atPert)] !== undefined) {
+          reWriteLogPertMhs.push(v[parseInt(atPert)])
+        }
+      })
+
+
+      reWriteLogPertMhs.map((v) => {
+        _.remove(resultsAllMhs, {
+          npm: v.npm
+        })
+      })
+
+
+      resultsAllMhs.map((v) => {
+        v.id_log_mhs = null
+        v.isValid = null,
+          v.date_on_sign = null
+      })
+
+      // resultsAllMhs.push(reWriteLogPertMhs)
+
+      Array.prototype.push.apply(resultsAllMhs, reWriteLogPertMhs);
+
+      // console.log(reWriteLogPertMhs)
+      res.json({
+        data: {
+          logMhs: resultsAllMhs,
+          // getAllMhsWithSequence
+        }
+      });
+    });
+  });
+});
+
+router.get('/get-log-mobile-dosen', async (req, res) => {
+  console.log(req.query)
+
+  // console.log(coba)
+  connection.query('SELECT log_absensi_dosen.id as id_log_dsn, log_absensi_dosen.*, jadwal_kelas.*, dosen.*, kelas.* from log_absensi_dosen inner join jadwal_kelas on log_absensi_dosen.id_jadwal_kelas = jadwal_kelas.id inner join kelas on jadwal_kelas.kelas = kelas.id inner join dosen on log_absensi_dosen.nip = dosen.nip where log_absensi_dosen.id_jadwal_kelas = ? order by log_absensi_dosen.date_on_sign ASC', req.query.id_jadwal, function (error, resultsLogMhs, fields) {
+    if (error) throw error;
+
+
+    resultsLogMhs.map((v) => {
+      v.date_on_sign = moment(v.date_on_sign).lang('id').format('LLL');
+    })
+
+    let reWriteLogPertMhs = [];
+    let findUniqueMhs = _.uniqBy(resultsLogMhs, 'nip');
+    let getAllMhsWithSequence = [];
+
+    findUniqueMhs.map((v, i) => {
+      getAllMhsWithSequence[i] = _.filter(resultsLogMhs, {
+        'nip': v.nip
+      });
+    })
+
+    let atPert = req.query.idPert;
+    // console.log(parseInt( atPert))
+    getAllMhsWithSequence.map((v) => {
+
+      // console.log(v[parseInt(atPert)])
+      if (v[parseInt(atPert)] !== undefined) {
+        reWriteLogPertMhs.push(v[parseInt(atPert)])
+      }
+    })
+
+
+    // console.log(reWriteLogPertMhs)
+    res.json({
+      data: {
+        logDsn: reWriteLogPertMhs,
+        // getAllMhsWithSequence
+      }
+    });
+  });
+});
+
+
+router.get('/get-log-mobile-mahasiswa', async (req, res) => {
+  console.log(req.query)
+
+  // console.log(coba)
+  connection.query('SELECT log_absensi_mhs.id as id_log_mhs, log_absensi_mhs.*, jadwal_kelas.*, mahasiswa.*, kelas.* from log_absensi_mhs inner join jadwal_kelas on log_absensi_mhs.id_jadwal_kelas = jadwal_kelas.id inner join mahasiswa on log_absensi_mhs.npm = mahasiswa.npm inner join kelas on jadwal_kelas.kelas = kelas.id where log_absensi_mhs.id_jadwal_kelas = ? and log_absensi_mhs.npm = ? order by log_absensi_mhs.date_on_sign ASC', [req.query.id_jadwal, req.query.npm], function (error, resultsLogMhs, fields) {
+    if (error) throw error;
+
+
+    resultsLogMhs.map((v) => {
+      v.date_on_sign = moment(v.date_on_sign).lang('id').format('LLL');
+    })
+
+    let reWriteLogPertMhs = [];
+    let findUniqueMhs = _.uniqBy(resultsLogMhs, 'npm');
+    let getAllMhsWithSequence = [];
+
+
+
+    let atPert = req.query.idPert;
+    // console.log(parseInt( atPert))
+
+
+
+    if (resultsLogMhs[parseInt(atPert)] !== undefined) {
+      reWriteLogPertMhs.push(resultsLogMhs[parseInt(atPert)])
+    }
+
+
+
+
+    // console.log(reWriteLogPertMhs)
+    res.json({
+      data: {
+        logMhs: reWriteLogPertMhs,
+        // resultsLogMhs
+      }
+    });
+  });
+});
+
+
+
+router.post('/change-log-mhs/:id', async (req, res) => {
+  console.log(req.body)
+  console.log(req.params)
+  connection.query('update log_absensi_mhs SET ? where id = ? ', [{
+    isValid: req.body.status === '' ? null : req.body.status
+  }, req.params.id], function (error, results, fields) {
+    if (error) throw error;
+    // connected!
+    // console.log(results);  
+    res.sendStatus(200)
+  });
+
+
+
+})
+
+
+
+router.post('/change-log-dsn/:id', async (req, res) => {
+  console.log(req.body)
+  console.log(req.params)
+  connection.query('update log_absensi_dosen SET ? where id = ? ', [{
+    isValid: req.body.status === '' ? null : req.body.status
+  }, req.params.id], function (error, results, fields) {
+    if (error) throw error;
+    // connected!
+    // console.log(results);  
+    res.sendStatus(200)
+  });
+
+
+
+})
+
+
+router.post('/add-kelas', async (req, res) => {
+  console.log(req.body)
+  console.log(req.params)
+  connection.query('insert into kelas set ? ', [{
+    kelas: req.body.namaKelas,
+  }], function (error, results, fields) {
+    if (error) throw error;
+    // connected!
+    console.log(results);
+    res.send(200);
+  });
+
+
+
+})
 
 // get all log dosen
 router.get('/get-all-log-dsn', async (req, res) => {
@@ -665,7 +960,9 @@ router.post('/save-location-mhs', async (req, res) => {
       longitude,
       id_jadwal_kelas,
       token,
-      address
+      address,
+      date_on_sign: moment().format('YYYY/MM/DD HH:mm:ss')
+
     }], function (error, results, fields) {
       if (error) throw error;
       console.log(results.insertId);
@@ -710,7 +1007,8 @@ router.post('/save-location-dosen', async (req, res) => {
       longitude,
       id_jadwal_kelas,
       token,
-      address
+      address,
+      date_on_sign: moment().format('YYYY/MM/DD HH:mm:ss')
     }], function (error, results, fields) {
       if (error) throw error;
       console.log(results.insertId);
@@ -805,7 +1103,7 @@ router.post('/login-mhs', async (req, res) => {
 });
 
 router.post('/login-dosen', async (req, res) => {
-  var query = connection.query("select * from dosen where email = ? ", req.body.email, function (err, data) {
+  var query = connection.query("select * from dosen where email = ? ", req.body.email.toLowerCase(), function (err, data) {
 
     console.log(req.body)
     console.log(data);
@@ -829,7 +1127,7 @@ router.post('/login-dosen', async (req, res) => {
 
 
 
-      if ((req.body.email === data[0].email) && (req.body.password === data[0].password)) {
+      if ((req.body.email.toLowerCase() === data[0].email) && (req.body.password === data[0].password)) {
 
         console.log({
           status: 'Login berhasil.'
